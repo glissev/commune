@@ -262,7 +262,7 @@ function ThreadList({ threads, posts, users, reactions, onOpenThread, onNewThrea
                 <Avatar user={author} size="md" />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-                    {thread.pinned && <span style={{ fontSize: 12 }}>\u{1F4CC}</span>}
+                    {thread.pinned && <span style={{ fontSize: 12 }}>📌</span>}
                     <span style={{ fontSize: 11, fontWeight: 500, padding: "2px 6px", borderRadius: 4, background: (catColors[thread.category] || "#6b7280") + "22", color: catColors[thread.category] || "#6b7280" }}>{thread.category}</span>
                   </div>
                   <h3 style={{ fontSize: 14, fontWeight: 600, color: "white", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{thread.title}</h3>
@@ -309,7 +309,7 @@ function ThreadView({ thread, posts, users, reactions, currentUser, onBack, onPo
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 11, fontWeight: 500, padding: "2px 6px", borderRadius: 4, background: (catColors[thread.category] || "#6b7280") + "22", color: catColors[thread.category] }}>{thread.category}</span>
-            {thread.pinned && <span style={{ fontSize: 12, color: "#fbbf24" }}>\u{1F4CC} Pinned</span>}
+            {thread.pinned && <span style={{ fontSize: 12, color: "#fbbf24" }}>📌 Pinned</span>}
           </div>
           <h2 style={{ fontSize: 15, fontWeight: 700, color: "white", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{thread.title}</h2>
         </div>
@@ -359,7 +359,7 @@ function ThreadView({ thread, posts, users, reactions, currentUser, onBack, onPo
                       <div style={{ position: "relative" }}>
                         <button onClick={() => setEmojiPicker(emojiPicker === post.id ? null : post.id)}
                           style={{ padding: "2px 6px", borderRadius: 99, fontSize: 12, color: "#475569", background: "none", border: "none", cursor: "pointer" }}>
-                          +\u{1F600}
+                          +😀
                         </button>
                         {emojiPicker === post.id && (
                           <div style={{ position: "absolute", bottom: "100%", left: 0, marginBottom: 4, display: "flex", gap: 4, padding: 6, borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "#1e1b2e", zIndex: 20 }}>
