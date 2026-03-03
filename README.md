@@ -82,6 +82,39 @@ commune/
 - To add persistence, swap the in-memory stores with a backend API or localStorage.
 - The app is fully self-contained in a single component file for simplicity. For a production app you'd split it into separate component files.
 
+## Deploying to GitHub Pages
+
+The repository includes a GitHub Actions workflow (`.github/workflows/deploy.yml`) that automatically builds and deploys the app to GitHub Pages whenever you push to `main`.
+
+### One-time setup
+
+1. Go to your repository on GitHub.
+2. Navigate to **Settings → Pages**.
+3. Under **Build and deployment → Source**, select **GitHub Actions**.
+4. Save the settings.
+
+### Triggering a deployment
+
+Push any commit to the `main` branch:
+
+```bash
+git push origin main
+```
+
+The workflow will:
+1. Install dependencies with `npm ci`.
+2. Build the production bundle with `npm run build`.
+3. Upload the `dist/` folder as a Pages artifact.
+4. Deploy the artifact to GitHub Pages.
+
+Once the **Deploy to GitHub Pages** workflow completes, your site will be live at:
+
+```
+https://<your-github-username>.github.io/commune/
+```
+
+You can monitor the workflow progress under the **Actions** tab of your repository.
+
 ## License
 
 [MIT](LICENSE)
