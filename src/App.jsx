@@ -1,48 +1,7 @@
 import { useState, useEffect, useRef } from "react";
-
-// --- Data Store (in-memory) ---
-const INITIAL_USERS = [
-  { id: "u1", username: "alex_dev", displayName: "Alex Chen", password: "pass123", avatar: "AC", bio: "Full-stack developer & open source enthusiast", joinedAt: "2024-11-02", status: "online" },
-  { id: "u2", username: "maria_design", displayName: "Maria Santos", password: "pass123", avatar: "MS", bio: "UI/UX Designer crafting delightful experiences", joinedAt: "2024-12-15", status: "online" },
-  { id: "u3", username: "jt_writes", displayName: "Jordan Taylor", password: "pass123", avatar: "JT", bio: "Technical writer & documentation nerd", joinedAt: "2025-01-08", status: "away" },
-  { id: "u4", username: "sam_ops", displayName: "Sam Kim", password: "pass123", avatar: "SK", bio: "DevOps engineer, coffee addict", joinedAt: "2025-02-20", status: "offline" },
-];
-
-const INITIAL_THREADS = [
-  { id: "t1", title: "What's your favorite dev tool in 2025?", category: "General", authorId: "u1", createdAt: "2025-02-28T10:00:00", pinned: true },
-  { id: "t2", title: "Tips for writing better documentation", category: "Resources", authorId: "u3", createdAt: "2025-03-01T14:30:00", pinned: false },
-  { id: "t3", title: "Show off your latest side project!", category: "Showcase", authorId: "u2", createdAt: "2025-03-02T09:15:00", pinned: false },
-];
-
-const INITIAL_POSTS = [
-  { id: "p1", threadId: "t1", authorId: "u1", content: "I've been using Cursor lately and it's completely changed my workflow. The AI integration feels seamless. What tools are you all loving right now?", createdAt: "2025-02-28T10:00:00", replyTo: null },
-  { id: "p2", threadId: "t1", authorId: "u2", content: "Figma's Dev Mode has gotten so much better! The code generation is surprisingly accurate now.", createdAt: "2025-02-28T11:20:00", replyTo: "p1" },
-  { id: "p3", threadId: "t1", authorId: "u3", content: "I'm a huge fan of Obsidian for knowledge management. Combined with Git, it's unbeatable for docs.", createdAt: "2025-02-28T14:45:00", replyTo: "p1" },
-  { id: "p4", threadId: "t1", authorId: "u4", content: "Terraform + Pulumi combo for me. Infrastructure as code is *chef's kiss*", createdAt: "2025-03-01T08:00:00", replyTo: null },
-  { id: "p5", threadId: "t2", authorId: "u3", content: "Here are my top 5 tips for writing docs that people actually read:\n\n1. Start with the 'why' before the 'how'\n2. Use real-world examples, not abstract ones\n3. Keep sentences short and direct\n4. Add diagrams wherever possible\n5. Get feedback from someone unfamiliar with the topic", createdAt: "2025-03-01T14:30:00", replyTo: null },
-  { id: "p6", threadId: "t2", authorId: "u1", content: "Great list! I'd add: version your docs alongside your code. Nothing worse than outdated documentation.", createdAt: "2025-03-01T16:00:00", replyTo: "p5" },
-  { id: "p7", threadId: "t3", authorId: "u2", content: "Just shipped a personal portfolio site built with Astro + View Transitions API. The page transitions are buttery smooth!", createdAt: "2025-03-02T09:15:00", replyTo: null },
-];
-
-const INITIAL_REACTIONS = [
-  { postId: "p1", userId: "u2", emoji: "\u{1F525}" },
-  { postId: "p1", userId: "u3", emoji: "\u{1F44D}" },
-  { postId: "p1", userId: "u4", emoji: "\u{1F44D}" },
-  { postId: "p2", userId: "u1", emoji: "\u{1F4AF}" },
-  { postId: "p3", userId: "u1", emoji: "\u{1F44D}" },
-  { postId: "p5", userId: "u1", emoji: "\u{1F525}" },
-  { postId: "p5", userId: "u2", emoji: "\u2764\uFE0F" },
-  { postId: "p5", userId: "u4", emoji: "\u{1F44D}" },
-  { postId: "p7", userId: "u1", emoji: "\u{1F680}" },
-  { postId: "p7", userId: "u3", emoji: "\u{1F525}" },
-];
-
-const INITIAL_MESSAGES = [
-  { id: "m1", fromId: "u1", toId: "u2", content: "Hey Maria! Love the new portfolio design you shared.", createdAt: "2025-03-02T10:00:00", read: true },
-  { id: "m2", fromId: "u2", toId: "u1", content: "Thanks Alex! Took me a whole weekend but totally worth it", createdAt: "2025-03-02T10:05:00", read: true },
-  { id: "m3", fromId: "u1", toId: "u2", content: "Would you be open to collaborating on a project? I have an idea for a dev tool.", createdAt: "2025-03-02T10:10:00", read: false },
-  { id: "m4", fromId: "u3", toId: "u1", content: "Alex, can you review the docs PR I sent? Would love your feedback.", createdAt: "2025-03-02T11:00:00", read: false },
-];
+import { auth, db } from "./firebase";
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
+import { collection, doc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDoc, writeBatch } from "firebase/firestore";
 
 const EMOJI_OPTIONS = ["\u{1F44D}", "\u2764\uFE0F", "\u{1F525}", "\u{1F602}", "\u{1F680}", "\u{1F4AF}", "\u{1F389}", "\u{1F440}"];
 const CATEGORIES = ["General", "Resources", "Showcase", "Help", "Off-topic"];
@@ -57,8 +16,6 @@ const timeAgo = (dateStr) => {
   const days = Math.floor(hrs / 24);
   return `${days}d ago`;
 };
-
-const genId = () => Math.random().toString(36).slice(2, 10);
 
 const catColors = { General: "#7c3aed", Resources: "#3b82f6", Showcase: "#f59e0b", Help: "#ef4444", "Off-topic": "#6b7280" };
 
@@ -96,14 +53,18 @@ function LoginScreen({ onLogin, onSignUp }) {
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState("");
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setError("");
     if (!username.trim() || !password.trim()) { setError("All fields are required"); return; }
     if (tab === "signup" && !displayName.trim()) { setError("Display name is required"); return; }
-    if (tab === "login") {
-      if (!onLogin(username.trim(), password.trim())) setError("Invalid username or password");
-    } else {
-      if (!onSignUp(username.trim(), password.trim(), displayName.trim())) setError("Username already taken");
+    try {
+      if (tab === "login") {
+        await onLogin(username.trim(), password.trim());
+      } else {
+        await onSignUp(username.trim(), password.trim(), displayName.trim());
+      }
+    } catch (err) {
+      setError(err.message);
     }
   };
 
@@ -668,71 +629,164 @@ function ProfileView({ currentUser, onUpdate, onLogout }) {
 
 export default function App() {
   const isMobile = useIsMobile();
+  const [authLoading, setAuthLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
-  const [users, setUsers] = useState(INITIAL_USERS);
-  const [threads, setThreads] = useState(INITIAL_THREADS);
-  const [posts, setPosts] = useState(INITIAL_POSTS);
-  const [reactions, setReactions] = useState(INITIAL_REACTIONS);
-  const [messages, setMessages] = useState(INITIAL_MESSAGES);
+  const [users, setUsers] = useState([]);
+  const [threads, setThreads] = useState([]);
+  const [posts, setPosts] = useState([]);
+  const [reactions, setReactions] = useState([]);
+  const [messages, setMessages] = useState([]);
   const [view, setView] = useState("threads");
   const [activeThread, setActiveThread] = useState(null);
 
-  const handleLogin = (username, password) => {
-    const user = users.find(u => u.username === username && u.password === password);
-    if (user) { setCurrentUser({ ...user, status: "online" }); setUsers(prev => prev.map(u => u.id === user.id ? { ...u, status: "online" } : u)); return true; }
-    return false;
+  // Firebase auth state listener
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
+      try {
+        if (firebaseUser) {
+          const snap = await getDoc(doc(db, "users", firebaseUser.uid));
+          if (snap.exists()) {
+            setCurrentUser({ id: firebaseUser.uid, ...snap.data() });
+            updateDoc(doc(db, "users", firebaseUser.uid), { status: "online" }).catch(() => {});
+          }
+          // If no doc yet (signup race), handleSignUp sets currentUser directly
+        } else {
+          setCurrentUser(null);
+        }
+      } catch {
+        setCurrentUser(null);
+      } finally {
+        setAuthLoading(false);
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  // Firestore real-time data listeners — active only when logged in
+  useEffect(() => {
+    if (!currentUser) return;
+
+    // Shared cache for merging the two message queries
+    const msgCache = { recv: [], sent: [] };
+    const mergeMessages = () => {
+      const seen = new Set();
+      setMessages([...msgCache.recv, ...msgCache.sent].filter(m => {
+        if (seen.has(m.id)) return false;
+        seen.add(m.id);
+        return true;
+      }));
+    };
+
+    const unsubs = [
+      onSnapshot(collection(db, "users"), snap =>
+        setUsers(snap.docs.map(d => ({ id: d.id, ...d.data() })))),
+      onSnapshot(collection(db, "threads"), snap =>
+        setThreads(snap.docs.map(d => ({ id: d.id, ...d.data() })))),
+      onSnapshot(collection(db, "posts"), snap =>
+        setPosts(snap.docs.map(d => ({ id: d.id, ...d.data() })))),
+      onSnapshot(collection(db, "reactions"), snap =>
+        setReactions(snap.docs.map(d => d.data()))),
+      onSnapshot(query(collection(db, "messages"), where("toId", "==", currentUser.id)), snap => {
+        msgCache.recv = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        mergeMessages();
+      }),
+      onSnapshot(query(collection(db, "messages"), where("fromId", "==", currentUser.id)), snap => {
+        msgCache.sent = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        mergeMessages();
+      }),
+    ];
+
+    return () => unsubs.forEach(u => u());
+  }, [currentUser?.id]);
+
+  const handleLogin = async (username, password) => {
+    try {
+      await signInWithEmailAndPassword(auth, `${username}@commune.internal`, password);
+    } catch {
+      throw new Error("Invalid username or password");
+    }
   };
 
-  const handleSignUp = (username, password, displayName) => {
-    if (users.find(u => u.username === username)) return false;
-    const newUser = { id: "u" + genId(), username, displayName, password, avatar: displayName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase(), bio: "", joinedAt: new Date().toISOString().slice(0, 10), status: "online" };
-    setUsers(prev => [...prev, newUser]);
-    setCurrentUser(newUser);
-    return true;
+  const handleSignUp = async (username, password, displayName) => {
+    try {
+      const { user } = await createUserWithEmailAndPassword(auth, `${username}@commune.internal`, password);
+      const avatar = displayName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+      const profile = { username, displayName, avatar, bio: "", joinedAt: new Date().toISOString().slice(0, 10), status: "online" };
+      await setDoc(doc(db, "users", user.uid), profile);
+      // Set currentUser directly to avoid race with onAuthStateChanged
+      setCurrentUser({ id: user.uid, ...profile });
+      setAuthLoading(false);
+    } catch (err) {
+      if (err.code === "auth/email-already-in-use") throw new Error("Username already taken");
+      throw new Error("Sign up failed. Please try again.");
+    }
   };
 
-  const handleLogout = () => {
-    setUsers(prev => prev.map(u => u.id === currentUser.id ? { ...u, status: "offline" } : u));
-    setCurrentUser(null); setView("threads"); setActiveThread(null);
+  const handleLogout = async () => {
+    if (currentUser) {
+      await updateDoc(doc(db, "users", currentUser.id), { status: "offline" }).catch(() => {});
+    }
+    await signOut(auth);
+    setView("threads");
+    setActiveThread(null);
   };
 
-  const handleNewThread = (title, category, content) => {
-    const tid = "t" + genId();
-    setThreads(prev => [...prev, { id: tid, title, category, authorId: currentUser.id, createdAt: new Date().toISOString(), pinned: false }]);
-    setPosts(prev => [...prev, { id: "p" + genId(), threadId: tid, authorId: currentUser.id, content, createdAt: new Date().toISOString(), replyTo: null }]);
-  };
-
-  const handlePost = (threadId, content, replyTo) => {
-    setPosts(prev => [...prev, { id: "p" + genId(), threadId, authorId: currentUser.id, content, createdAt: new Date().toISOString(), replyTo }]);
-  };
-
-  const handleReact = (postId, emoji) => {
-    setReactions(prev => {
-      const exists = prev.find(r => r.postId === postId && r.userId === currentUser.id && r.emoji === emoji);
-      if (exists) return prev.filter(r => !(r.postId === postId && r.userId === currentUser.id && r.emoji === emoji));
-      return [...prev, { postId, userId: currentUser.id, emoji }];
+  const handleNewThread = async (title, category, content) => {
+    const threadRef = await addDoc(collection(db, "threads"), {
+      title, category, authorId: currentUser.id, createdAt: new Date().toISOString(), pinned: false
+    });
+    await addDoc(collection(db, "posts"), {
+      threadId: threadRef.id, authorId: currentUser.id, content, createdAt: new Date().toISOString(), replyTo: null
     });
   };
 
-  const handleSendMessage = (toId, content) => {
-    setMessages(prev => [...prev, { id: "m" + genId(), fromId: currentUser.id, toId, content, createdAt: new Date().toISOString(), read: false }]);
+  const handlePost = async (threadId, content, replyTo) => {
+    await addDoc(collection(db, "posts"), {
+      threadId, authorId: currentUser.id, content, createdAt: new Date().toISOString(), replyTo: replyTo || null
+    });
   };
 
-  const handleMarkRead = (fromId) => {
-    setMessages(prev => prev.map(m => m.fromId === fromId && m.toId === currentUser.id && !m.read ? { ...m, read: true } : m));
+  const handleReact = async (postId, emoji) => {
+    const reactionId = `${postId}_${currentUser.id}_${encodeURIComponent(emoji)}`;
+    const reactionRef = doc(db, "reactions", reactionId);
+    const exists = reactions.find(r => r.postId === postId && r.userId === currentUser.id && r.emoji === emoji);
+    if (exists) {
+      await deleteDoc(reactionRef);
+    } else {
+      await setDoc(reactionRef, { postId, userId: currentUser.id, emoji });
+    }
   };
 
-  const handleUpdateProfile = (updates) => {
+  const handleSendMessage = async (toId, content) => {
+    await addDoc(collection(db, "messages"), {
+      fromId: currentUser.id, toId, content, createdAt: new Date().toISOString(), read: false
+    });
+  };
+
+  const handleMarkRead = async (fromId) => {
+    const unread = messages.filter(m => m.fromId === fromId && m.toId === currentUser.id && !m.read);
+    if (!unread.length) return;
+    const batch = writeBatch(db);
+    unread.forEach(m => batch.update(doc(db, "messages", m.id), { read: true }));
+    await batch.commit();
+  };
+
+  const handleUpdateProfile = async (updates) => {
+    await updateDoc(doc(db, "users", currentUser.id), updates);
     setCurrentUser(prev => ({ ...prev, ...updates }));
-    setUsers(prev => prev.map(u => u.id === currentUser.id ? { ...u, ...updates } : u));
   };
 
   const unreadCount = currentUser ? messages.filter(m => m.toId === currentUser.id && !m.read).length : 0;
 
+  if (authLoading) return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#0f0d1a" }}>
+      <div style={{ color: "#94a3b8", fontSize: 14 }}>Connecting...</div>
+    </div>
+  );
+
   if (!currentUser) return <LoginScreen onLogin={handleLogin} onSignUp={handleSignUp} />;
 
   const thread = activeThread ? threads.find(t => t.id === activeThread) : null;
-
   const navSetView = (v) => { setView(v); setActiveThread(null); };
 
   return (
