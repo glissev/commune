@@ -62,6 +62,16 @@ const genId = () => Math.random().toString(36).slice(2, 10);
 
 const catColors = { General: "#7c3aed", Resources: "#3b82f6", Showcase: "#f59e0b", Help: "#ef4444", "Off-topic": "#6b7280" };
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  useEffect(() => {
+    const handle = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handle);
+    return () => window.removeEventListener("resize", handle);
+  }, []);
+  return isMobile;
+}
+
 function Avatar({ user, size = "md", showStatus = false }) {
   const sizes = { sm: "w-7 h-7 text-xs", md: "w-9 h-9 text-sm", lg: "w-12 h-12 text-base", xl: "w-16 h-16 text-lg" };
   const colors = { A: "#7c3aed", M: "#e11d48", J: "#d97706", S: "#059669", B: "#3b82f6", C: "#06b6d4", D: "#ec4899" };
@@ -189,6 +199,28 @@ function Sidebar({ currentUser, view, setView, unreadCount, onLogout }) {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function BottomNav({ view, setView, unreadCount }) {
+  const navItems = [
+    { id: "threads", label: "Threads", icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> },
+    { id: "chat", label: "Messages", icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>, badge: unreadCount },
+    { id: "profile", label: "Profile", icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> },
+  ];
+  return (
+    <div style={{ display: "flex", borderTop: "1px solid rgba(255,255,255,0.08)", background: "rgba(15,13,26,0.98)", flexShrink: 0 }}>
+      {navItems.map(item => (
+        <button key={item.id} onClick={() => setView(item.id)}
+          style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, padding: "10px 0 12px", border: "none", background: "transparent", color: view === item.id ? "#c4b5fd" : "#64748b", cursor: "pointer", position: "relative", fontSize: 10, fontWeight: 500 }}>
+          {item.icon}
+          <span>{item.label}</span>
+          {item.badge > 0 && (
+            <span style={{ position: "absolute", top: 8, left: "calc(50% + 8px)", fontSize: 10, fontWeight: 700, padding: "1px 5px", borderRadius: 99, background: "#e11d48", color: "white", minWidth: 16, textAlign: "center" }}>{item.badge}</span>
+          )}
+        </button>
+      ))}
     </div>
   );
 }
@@ -407,9 +439,10 @@ function ThreadView({ thread, posts, users, reactions, currentUser, onBack, onPo
   );
 }
 
-function ChatView({ currentUser, users, messages, onSend, onMarkRead }) {
+function ChatView({ currentUser, users, messages, onSend, onMarkRead, isMobile }) {
   const [selectedUser, setSelectedUser] = useState(null);
   const [msg, setMsg] = useState("");
+  const [panelOpen, setPanelOpen] = useState(true);
   const endRef = useRef(null);
   const otherUsers = users.filter(u => u.id !== currentUser.id);
 
@@ -418,6 +451,16 @@ function ChatView({ currentUser, users, messages, onSend, onMarkRead }) {
   ).sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
   const getUnread = (userId) => messages.filter(m => m.fromId === userId && m.toId === currentUser.id && !m.read).length;
+
+  const handleSelectUser = (userId) => {
+    setSelectedUser(userId);
+    if (isMobile) setPanelOpen(false);
+  };
+
+  const handleBack = () => {
+    setSelectedUser(null);
+    setPanelOpen(true);
+  };
 
   const handleSend = () => {
     if (!msg.trim() || !selectedUser) return;
@@ -436,86 +479,118 @@ function ChatView({ currentUser, users, messages, onSend, onMarkRead }) {
   const convo = selectedUser ? getConversation(selectedUser) : [];
   const selUser = users.find(u => u.id === selectedUser);
 
-  return (
-    <div style={{ flex: 1, display: "flex", height: "100%" }}>
-      <div style={{ width: 256, borderRight: "1px solid rgba(255,255,255,0.05)", display: "flex", flexDirection: "column", background: "rgba(255,255,255,0.01)" }}>
-        <div style={{ padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-          <h2 style={{ fontSize: 16, fontWeight: 700, color: "white", margin: 0 }}>Messages</h2>
-        </div>
-        <div style={{ flex: 1, overflowY: "auto" }}>
-          {otherUsers.map(user => {
-            const unread = getUnread(user.id);
-            const lastMsg = getConversation(user.id).slice(-1)[0];
-            return (
-              <button key={user.id} onClick={() => setSelectedUser(user.id)}
-                style={{ width: "100%", textAlign: "left", padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: selectedUser === user.id ? "rgba(124,58,237,0.1)" : "transparent", border: "none", borderBottom: "1px solid rgba(255,255,255,0.05)", cursor: "pointer", color: "inherit" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <Avatar user={user} size="md" showStatus />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <span style={{ fontSize: 14, fontWeight: 500, color: "white", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.displayName}</span>
-                      {unread > 0 && <span style={{ width: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 99, background: "#e11d48", fontSize: 11, color: "white", fontWeight: 700 }}>{unread}</span>}
-                    </div>
-                    {lastMsg && <p style={{ fontSize: 12, color: "#475569", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2, margin: 0 }}>{lastMsg.fromId === currentUser.id ? "You: " : ""}{lastMsg.content}</p>}
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+  // On mobile: show panel OR conversation fullscreen (not both)
+  const showPanel = panelOpen;
+  const showConvo = isMobile ? !panelOpen : true;
 
-      {selectedUser ? (
-        <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-          <div style={{ padding: "12px 20px", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", gap: 12 }}>
-            <Avatar user={selUser} size="md" showStatus />
-            <div>
-              <p style={{ fontSize: 14, fontWeight: 600, color: "white", margin: 0 }}>{selUser.displayName}</p>
-              <p style={{ fontSize: 12, color: "#475569", margin: 0 }}>{selUser.status === "online" ? "Online" : selUser.status === "away" ? "Away" : "Offline"}</p>
-            </div>
+  return (
+    <div style={{ flex: 1, display: "flex", height: "100%", overflow: "hidden" }}>
+      {/* Left panel - user list */}
+      {showPanel && (
+        <div style={{ width: isMobile ? "100%" : 256, flexShrink: 0, borderRight: isMobile ? "none" : "1px solid rgba(255,255,255,0.05)", display: "flex", flexDirection: "column", background: "rgba(255,255,255,0.01)" }}>
+          <div style={{ padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: "white", margin: 0 }}>Messages</h2>
+            {!isMobile && (
+              <button onClick={() => setPanelOpen(false)} title="Collapse panel"
+                style={{ background: "none", border: "none", color: "#475569", cursor: "pointer", padding: 4, display: "flex", alignItems: "center" }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+            )}
           </div>
-          <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {convo.map(m => {
-                const isMine = m.fromId === currentUser.id;
-                return (
-                  <div key={m.id} style={{ display: "flex", justifyContent: isMine ? "flex-end" : "flex-start" }}>
-                    <div style={{ maxWidth: 320, padding: "8px 14px", borderRadius: 16, borderBottomRightRadius: isMine ? 4 : 16, borderBottomLeftRadius: isMine ? 16 : 4, fontSize: 14, background: isMine ? "linear-gradient(135deg, #7c3aed, #5b21b6)" : "rgba(255,255,255,0.06)", color: isMine ? "white" : "#e2e8f0", border: isMine ? "none" : "1px solid rgba(255,255,255,0.1)" }}>
-                      <p style={{ margin: 0 }}>{m.content}</p>
-                      <p style={{ fontSize: 11, marginTop: 4, margin: 0, marginTop: 4, color: isMine ? "rgba(196,181,253,0.6)" : "#475569" }}>{timeAgo(m.createdAt)}</p>
+          <div style={{ flex: 1, overflowY: "auto" }}>
+            {otherUsers.map(user => {
+              const unread = getUnread(user.id);
+              const lastMsg = getConversation(user.id).slice(-1)[0];
+              return (
+                <button key={user.id} onClick={() => handleSelectUser(user.id)}
+                  style={{ width: "100%", textAlign: "left", padding: "12px 16px", borderBottom: "1px solid rgba(255,255,255,0.05)", background: selectedUser === user.id ? "rgba(124,58,237,0.1)" : "transparent", border: "none", borderBottom: "1px solid rgba(255,255,255,0.05)", cursor: "pointer", color: "inherit" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <Avatar user={user} size="md" showStatus />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <span style={{ fontSize: 14, fontWeight: 500, color: "white", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.displayName}</span>
+                        {unread > 0 && <span style={{ width: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 99, background: "#e11d48", fontSize: 11, color: "white", fontWeight: 700 }}>{unread}</span>}
+                      </div>
+                      {lastMsg && <p style={{ fontSize: 12, color: "#475569", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2, margin: 0 }}>{lastMsg.fromId === currentUser.id ? "You: " : ""}{lastMsg.content}</p>}
                     </div>
                   </div>
-                );
-              })}
-            </div>
-            <div ref={endRef} />
-          </div>
-          <div style={{ padding: "12px 20px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-            <div style={{ display: "flex", gap: 8 }}>
-              <input value={msg} onChange={e => setMsg(e.target.value)} placeholder={`Message ${selUser.displayName}...`} onKeyDown={e => e.key === "Enter" && handleSend()}
-                style={{ flex: 1, padding: "8px 14px", borderRadius: 8, color: "white", fontSize: 14, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", outline: "none" }} />
-              <button onClick={handleSend} disabled={!msg.trim()}
-                style={{ padding: "8px 16px", borderRadius: 8, fontSize: 14, fontWeight: 500, color: "white", border: "none", cursor: "pointer", opacity: msg.trim() ? 1 : 0.4, background: "linear-gradient(135deg, #7c3aed, #3b82f6)" }}>
-                Send
-              </button>
-            </div>
+                </button>
+              );
+            })}
           </div>
         </div>
-      ) : (
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ textAlign: "center" }}>
-            <div style={{ width: 64, height: 64, margin: "0 auto 12px", borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(124,58,237,0.1)" }}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+      )}
+
+      {/* Conversation area */}
+      {showConvo && (
+        selectedUser ? (
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+            <div style={{ padding: "12px 20px", borderBottom: "1px solid rgba(255,255,255,0.05)", display: "flex", alignItems: "center", gap: 12 }}>
+              {isMobile ? (
+                <button onClick={handleBack} style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer", padding: 4, flexShrink: 0 }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+              ) : !panelOpen && (
+                <button onClick={() => setPanelOpen(true)} title="Expand panel"
+                  style={{ background: "none", border: "none", color: "#475569", cursor: "pointer", padding: 4, display: "flex", alignItems: "center", flexShrink: 0 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+              )}
+              <Avatar user={selUser} size="md" showStatus />
+              <div>
+                <p style={{ fontSize: 14, fontWeight: 600, color: "white", margin: 0 }}>{selUser.displayName}</p>
+                <p style={{ fontSize: 12, color: "#475569", margin: 0 }}>{selUser.status === "online" ? "Online" : selUser.status === "away" ? "Away" : "Offline"}</p>
+              </div>
             </div>
-            <p style={{ color: "#94a3b8", fontSize: 14 }}>Select a conversation to start chatting</p>
+            <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {convo.map(m => {
+                  const isMine = m.fromId === currentUser.id;
+                  return (
+                    <div key={m.id} style={{ display: "flex", justifyContent: isMine ? "flex-end" : "flex-start" }}>
+                      <div style={{ maxWidth: isMobile ? "85%" : 320, padding: "8px 14px", borderRadius: 16, borderBottomRightRadius: isMine ? 4 : 16, borderBottomLeftRadius: isMine ? 16 : 4, fontSize: 14, background: isMine ? "linear-gradient(135deg, #7c3aed, #5b21b6)" : "rgba(255,255,255,0.06)", color: isMine ? "white" : "#e2e8f0", border: isMine ? "none" : "1px solid rgba(255,255,255,0.1)" }}>
+                        <p style={{ margin: 0 }}>{m.content}</p>
+                        <p style={{ fontSize: 11, margin: "4px 0 0", color: isMine ? "rgba(196,181,253,0.6)" : "#475569" }}>{timeAgo(m.createdAt)}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div ref={endRef} />
+            </div>
+            <div style={{ padding: "12px 20px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input value={msg} onChange={e => setMsg(e.target.value)} placeholder={`Message ${selUser.displayName}...`} onKeyDown={e => e.key === "Enter" && handleSend()}
+                  style={{ flex: 1, padding: "8px 14px", borderRadius: 8, color: "white", fontSize: 14, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", outline: "none" }} />
+                <button onClick={handleSend} disabled={!msg.trim()}
+                  style={{ padding: "8px 16px", borderRadius: 8, fontSize: 14, fontWeight: 500, color: "white", border: "none", cursor: "pointer", opacity: msg.trim() ? 1 : 0.4, background: "linear-gradient(135deg, #7c3aed, #3b82f6)" }}>
+                  Send
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ textAlign: "center" }}>
+              {!panelOpen && (
+                <button onClick={() => setPanelOpen(true)}
+                  style={{ marginBottom: 16, padding: "6px 14px", borderRadius: 8, fontSize: 13, color: "#94a3b8", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer" }}>
+                  Show contacts
+                </button>
+              )}
+              <div style={{ width: 64, height: 64, margin: "0 auto 12px", borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(124,58,237,0.1)" }}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              </div>
+              <p style={{ color: "#94a3b8", fontSize: 14 }}>Select a conversation to start chatting</p>
+            </div>
+          </div>
+        )
       )}
     </div>
   );
 }
 
-function ProfileView({ currentUser, onUpdate }) {
+function ProfileView({ currentUser, onUpdate, onLogout }) {
   const [editing, setEditing] = useState(false);
   const [displayName, setDisplayName] = useState(currentUser.displayName);
   const [bio, setBio] = useState(currentUser.bio);
@@ -580,12 +655,19 @@ function ProfileView({ currentUser, onUpdate }) {
             </div>
           )}
         </div>
+        {onLogout && (
+          <button onClick={onLogout}
+            style={{ marginTop: 16, width: "100%", padding: "10px 0", borderRadius: 8, fontSize: 14, fontWeight: 500, color: "#94a3b8", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer" }}>
+            Sign Out
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
 export default function App() {
+  const isMobile = useIsMobile();
   const [currentUser, setCurrentUser] = useState(null);
   const [users, setUsers] = useState(INITIAL_USERS);
   const [threads, setThreads] = useState(INITIAL_THREADS);
@@ -651,23 +733,28 @@ export default function App() {
 
   const thread = activeThread ? threads.find(t => t.id === activeThread) : null;
 
+  const navSetView = (v) => { setView(v); setActiveThread(null); };
+
   return (
-    <div style={{ display: "flex", height: "100vh", width: "100%", overflow: "hidden", background: "#0f0d1a", color: "white", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
-      <Sidebar currentUser={currentUser} view={view} setView={(v) => { setView(v); setActiveThread(null); }} unreadCount={unreadCount} onLogout={handleLogout} />
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-        {view === "threads" && !thread && (
-          <ThreadList threads={threads} posts={posts} users={users} reactions={reactions} onOpenThread={setActiveThread} onNewThread={handleNewThread} />
-        )}
-        {view === "threads" && thread && (
-          <ThreadView thread={thread} posts={posts} users={users} reactions={reactions} currentUser={currentUser} onBack={() => setActiveThread(null)} onPost={handlePost} onReact={handleReact} />
-        )}
-        {view === "chat" && (
-          <ChatView currentUser={currentUser} users={users} messages={messages} onSend={handleSendMessage} onMarkRead={handleMarkRead} />
-        )}
-        {view === "profile" && (
-          <ProfileView currentUser={currentUser} onUpdate={handleUpdateProfile} />
-        )}
+    <div style={{ display: "flex", flexDirection: "column", height: "100vh", width: "100%", overflow: "hidden", background: "#0f0d1a", color: "white", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+      <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
+        {!isMobile && <Sidebar currentUser={currentUser} view={view} setView={navSetView} unreadCount={unreadCount} onLogout={handleLogout} />}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
+          {view === "threads" && !thread && (
+            <ThreadList threads={threads} posts={posts} users={users} reactions={reactions} onOpenThread={setActiveThread} onNewThread={handleNewThread} />
+          )}
+          {view === "threads" && thread && (
+            <ThreadView thread={thread} posts={posts} users={users} reactions={reactions} currentUser={currentUser} onBack={() => setActiveThread(null)} onPost={handlePost} onReact={handleReact} />
+          )}
+          {view === "chat" && (
+            <ChatView currentUser={currentUser} users={users} messages={messages} onSend={handleSendMessage} onMarkRead={handleMarkRead} isMobile={isMobile} />
+          )}
+          {view === "profile" && (
+            <ProfileView currentUser={currentUser} onUpdate={handleUpdateProfile} onLogout={isMobile ? handleLogout : null} />
+          )}
+        </div>
       </div>
+      {isMobile && <BottomNav view={view} setView={navSetView} unreadCount={unreadCount} />}
     </div>
   );
 }
