@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm install firebase)"
+      "Bash(npm install firebase)",
+      "Bash(xargs grep -l \"8080\")"
     ]
   }
 }
