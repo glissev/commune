@@ -718,7 +718,10 @@ export default function App() {
       setAuthLoading(false);
     } catch (err) {
       if (err.code === "auth/email-already-in-use") throw new Error("Username already taken");
-      throw new Error("Sign up failed. Please try again.");
+      if (err.code === "auth/operation-not-allowed") throw new Error("Email/password sign-in is not enabled. Enable it in the Firebase console under Authentication → Sign-in method.");
+      if (err.code === "auth/invalid-api-key" || err.code === "auth/configuration-not-found") throw new Error("Firebase configuration error. Check that all VITE_FIREBASE_* secrets are set in GitHub.");
+      if (err.code === "auth/weak-password") throw new Error("Password must be at least 6 characters.");
+      throw new Error(`Sign up failed: ${err.code || err.message}`);
     }
   };
 
