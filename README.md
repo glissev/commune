@@ -82,16 +82,40 @@ commune/
 - To add persistence, swap the in-memory stores with a backend API or localStorage.
 - The app is fully self-contained in a single component file for simplicity. For a production app you'd split it into separate component files.
 
-## Deploying to GitHub Pages
+## Deploying to Firebase Hosting
 
-The repository includes a GitHub Actions workflow (`.github/workflows/deploy.yml`) that automatically builds and deploys the app to GitHub Pages whenever you push to `main`.
+The repository includes a GitHub Actions workflow (`.github/workflows/deploy.yml`) that automatically builds and deploys the app to Firebase Hosting whenever you push to `main`.
 
 ### One-time setup
 
-1. Go to your repository on GitHub.
-2. Navigate to **Settings → Pages**.
-3. Under **Build and deployment → Source**, select **GitHub Actions**.
-4. Save the settings.
+#### 1. Generate a Firebase service account key
+
+1. Open the [Firebase console](https://console.firebase.google.com/) and select your project.
+2. Go to **Project settings** (gear icon) → **Service accounts**.
+3. Click **Generate new private key** and confirm. A JSON file will be downloaded to your machine.
+4. **Keep this file private** — do not commit it to the repository.
+
+#### 2. Add secrets to GitHub
+
+Go to your repository on GitHub → **Settings → Secrets and variables → Actions → New repository secret** and add each of the following secrets:
+
+| Secret name | Where to find the value |
+|---|---|
+| `FIREBASE_SERVICE_ACCOUNT` | Paste the **entire contents** of the downloaded service account JSON file |
+| `VITE_FIREBASE_API_KEY` | Firebase console → Project settings → General → Your apps → Web API Key |
+| `VITE_FIREBASE_AUTH_DOMAIN` | `<project-id>.firebaseapp.com` |
+| `VITE_FIREBASE_PROJECT_ID` | Firebase console → Project settings → General → Project ID |
+| `VITE_FIREBASE_STORAGE_BUCKET` | `<project-id>.firebasestorage.app` (or `<project-id>.appspot.com` for older projects — check the Firebase console) |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Firebase console → Project settings → General → Sender ID |
+| `VITE_FIREBASE_APP_ID` | Firebase console → Project settings → General → App ID |
+
+#### 3. Local development
+
+Copy `.env.example` to `.env.local` and fill in the values from your Firebase project settings:
+
+```bash
+cp .env.example .env.local
+```
 
 ### Triggering a deployment
 
@@ -103,14 +127,13 @@ git push origin main
 
 The workflow will:
 1. Install dependencies with `npm ci`.
-2. Build the production bundle with `npm run build`.
-3. Upload the `dist/` folder as a Pages artifact.
-4. Deploy the artifact to GitHub Pages.
+2. Build the production bundle with `npm run build` (injecting the `VITE_*` secrets as environment variables).
+3. Deploy the `dist/` folder to Firebase Hosting.
 
-Once the **Deploy to GitHub Pages** workflow completes, your site will be live at:
+Once the **Deploy to Firebase Hosting** workflow completes, your site will be live at:
 
 ```
-https://<your-github-username>.github.io/commune/
+https://<your-project-id>.web.app
 ```
 
 You can monitor the workflow progress under the **Actions** tab of your repository.
